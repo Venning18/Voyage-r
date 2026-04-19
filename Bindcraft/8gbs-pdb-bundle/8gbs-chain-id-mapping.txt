@@ -1,0 +1,8 @@
+    New chain ID            Original chain ID
+
+8gbs-pdb-bundle1.pdb:
+           A                        A1
+           B                        A2
+           C                        A4
+           D                         C
+           E                        A3

@@ -1,0 +1,52 @@
+Image Analysis - GV-Detektion und -Tracking 
+
+Ultraschallbilder besonders schwierig, weil deutlich mehr Rauschen und weniger klar definierte Kanten. S
+
+Optic Flow: 	Tracken von Bewegung der GV (bsp. Biofabrication) [vllt auch 	ein Frage für Melde]
+		
+
+Bereichserkennung: Ultraschall adaptiere Segmentierungsmethoden (automatische 	Abgrenzung von GVs. 
+
+ML:	Ultraschall Rauschen reduzieren, Kontraste verbessern 
+
+
+Algorithmen für Echtzeit-Feedback zur GV-Qualität, Lokalisation 
+
+
+Worklflow:
+1. RF -> Image : Schallwellen -> Echo -> Signal -> Bild 
+2. Segmentation Bild -> Objekte
+3. Tracking
+4. Optical Flow Pixel -> Bewegung
+
+Pipeline: 
+RF -> Reconstruction -> B-mode -> Denoising -> Segmentation (optional) -> optical flow -> Tracking -> Biologische Interpretation
+
+Roadmap:
+
+1. klassische Methoden: Thresholding, Kanten-Detektion (Canny), Region-	Growing
+2. spezialisierte Ultraschall-Verfahren (Speckle ^	Reduction(Rauschunterdrückung), Elastic Image Registration 	(Bewegungen))
+	
+3. Deep Learning: (Attention) U-Net, Cellpose, StarDist
+
+4. Optic Flow: alman Filter (Bewegungsvorhersagen), LAP 	racker 	Matching Problem); OpenCV (Lucas-Kanade (Punkte), Farneback 	Fläche)); Deep Learning (RAFT)
+
+
+
+Fragen:
+- Wie stark beeinflusst Beamforming die spätere Segmentierbarkeit? 
+- RF Level statt B Mode? 
+- Welche Features gehen bei Log-Compression verloren? 
+
+- Wie geht man mit Speckle noise in DL-Modellen um? 
+- Braucht man annotierte Daten oder geht self-supervised? 
+
+- Wie robust sind Tracking-Algorithmen bei Objekten, die erscheinen/verschwinden?
+- Kann man physikalische Modelle ins Tracking integrieren? 
+
+- Wie robust ist ein Optical Flow bei Speckle decorrelation? 
+- Sollte man Speckle trackig statt optical flow verwenden? Oder beides Kombinieren? 
+- Ist RAFT auf Ultraschall sinnvoll oder braucht man eigene Modelle? 
+
+
+
