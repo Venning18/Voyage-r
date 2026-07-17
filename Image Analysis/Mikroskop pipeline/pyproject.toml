@@ -1,0 +1,23 @@
+[project]
+name = "mikroskop-gv-image-analysis"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "bioio>=3.4.0",
+    "cellsam",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.9",
+    "napari>=0.7.1",
+    "numpy>=2.2.6",
+    "pandas>=2.3.3",
+    "pyimagej>=1.8.0",
+    "scikit-image>=0.25.2",
+    "tifffile>=2025.5.10",
+    "torch>=2.13.0",
+    "tqdm>=4.68.4",
+]
+
+[tool.uv.sources]
+cellsam = { git = "https://github.com/vanvalenlab/cellSAM.git" }
