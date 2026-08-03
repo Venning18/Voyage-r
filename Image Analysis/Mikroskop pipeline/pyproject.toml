@@ -9,7 +9,7 @@ dependencies = [
     "cellsam",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.9",
-    "napari>=0.7.1",
+    "napari[pyqt6]>=0.7.1",
     "numpy>=2.2.6",
     "pandas>=2.3.3",
     "pyimagej>=1.8.0",
