@@ -73,7 +73,7 @@ def build_bboxes_csv(
 def parse_args():
     import argparse
     ap = argparse.ArgumentParser("Build a bboxes TSV from raw images + instance-label masks.")
-    ap.add_argument("--image_dir", required=True, help="e.g. data/02_processed")
+    ap.add_argument("--image_dir", required=True, help="e.g. data/01_raw")
     ap.add_argument("--mask_dir", required=True, help="e.g. data/masks_gvs or data/masks_cells")
     ap.add_argument("--out_csv", required=True)
     ap.add_argument("--image_ext", default=".tif")
