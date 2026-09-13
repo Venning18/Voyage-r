@@ -23,7 +23,7 @@ Ausgabe:
 Benutzung:
     python augment.py \\
         --image_dir data/01_raw \\
-        --mask_dir data/masks_cells \\
+        --mask_dir data/masks_gvs \\
         --out_dir data_split \\
         --angles 90 270 \\
         --flips horizontal
@@ -98,6 +98,14 @@ def rows_for_augmented(image, mask, uid, out_image_path, out_mask_path):
     return label_mask_to_rows(mask, uid=uid, image_path=out_image_path, label_path=out_mask_path)
 
 
+def mask_n_instances(mask_path):
+    """Anzahl annotierter Instanzen in einer Maske (0 = leere/nicht annotierte Maske)."""
+    m = np.asarray(tiff.imread(mask_path))
+    ids = np.unique(m)
+    ids = ids[ids != 0]   # Hintergrund (0) ignorieren
+    return int(ids.size)
+
+
 # -------------------------
 # Main
 # -------------------------
@@ -136,7 +144,27 @@ def main():
         raise ValueError("Keine passenden Bild/Masken-Paare gefunden.")
     print(f"[INFO] {len(pairs)} Original-Paare gefunden.")
 
-    # 2) ZUERST splitten (auf Originalen)
+    # 1b) Leere (nicht annotierte) Masken erkennen und aussortieren
+    nonempty = {}
+    empty_stems = []
+    for stem, (image_path, mask_path) in pairs.items():
+        if mask_n_instances(mask_path) > 0:
+            nonempty[stem] = (image_path, mask_path)
+        else:
+            empty_stems.append(stem)
+
+    if empty_stems:
+        print(f"[WARN] {len(empty_stems)} Masken sind LEER (keine Annotation) und werden ausgeschlossen:")
+        for s in empty_stems:
+            print(f"       - {s}")
+
+    print(f"[INFO] {len(nonempty)} Bilder mit Annotation verbleiben.")
+    if len(nonempty) < 3:
+        raise ValueError("Zu wenige annotierte Bilder fuer einen train/val/test-Split. "
+                         "Bitte mehr Masken annotieren.")
+
+    # 2) ZUERST splitten (nur ueber annotierte Bilder -> kein leeres Test-Set)
+    pairs = nonempty
     train_stems, val_stems, test_stems = split_stems(
         pairs.keys(), args.val_frac, args.test_frac, args.seed
     )

@@ -263,7 +263,6 @@ def set_backbone_trainable(decode_head, trainable: bool):
 def parse_args():
     
     ap = argparse.ArgumentParser()
-    ap.add_argument("--bboxes_csv", required=True)
     ap.add_argument("--bboxes_csv", required=False, default=None)   # war required=True
     ap.add_argument("--use_existing_splits", action="store_true",
                     help="Nutze vorhandene train/val/test_bboxes.tsv statt intern zu splitten.")
@@ -289,7 +288,8 @@ def parse_args():
 def main():
 
     args = parse_args()
-    
+    os.makedirs(args.outdir, exist_ok=True)
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     loss_tsv = os.path.join(args.outdir, "losses.tsv")
@@ -316,14 +316,6 @@ def main():
     train_dset = CellFinderDataset(train_tsv, resize=1024)
     val_dset   = CellFinderDataset(val_tsv, resize=1024)
 
-    train_df.to_csv(f'{args.outdir}/train_bboxes.tsv', sep="\t", index=False)
-    val_df.to_csv(f'{args.outdir}/val_bboxes.tsv', sep="\t", index=False)
-    test_df.to_csv(f'{args.outdir}/test_bboxes.tsv', sep="\t", index=False)
-    print(f"Training set: {len(train_df)},  Validation set: {len(val_df)},  Test set: {len(test_df)}")
-
-    train_dset = CellFinderDataset(f"{args.outdir}/train_bboxes.tsv", resize=1024)
-    val_dset = CellFinderDataset(f"{args.outdir}/val_bboxes.tsv", resize=1024)
-    
     weights = build_sampler_weights(train_dset, aug_weight=0.3)
     sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
 

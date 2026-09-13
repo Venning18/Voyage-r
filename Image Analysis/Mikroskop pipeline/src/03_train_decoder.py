@@ -471,7 +471,7 @@ def parse_args():
     
     ap = argparse.ArgumentParser("Train CellSAM SAM mask decoder (stage-2) using GT labels + boxes.")
     
-    ap.add_argument("--bboxes_csv", required=True, help="TSV with columns incl uid,image_path,label_path,xmin,ymin,xmax,ymax,label_id")
+    ap.add_argument("--bboxes_csv", required=False, default=None, help="TSV with columns incl uid,image_path,label_path,xmin,ymin,xmax,ymax,label_id")
     ap.add_argument("--init_cellsam_ckpt", required=True, help="Base CellSAM checkpoint (e.g. cellsam_general.pt)")
     ap.add_argument("--cellfinder_decode_head_ckpt", required=True, help="Your fine-tuned decode_head .pt")
     ap.add_argument("--outdir", required=True)
@@ -491,7 +491,6 @@ def parse_args():
     ap.add_argument("--bce_w", type=float, default=1.0)
     ap.add_argument("--dice_w", type=float, default=1.0)
 
-    ap.add_argument("--bboxes_csv", required=False, default=None)   # war required=True
     ap.add_argument("--use_existing_splits", action="store_true",
                     help="Nutze vorhandene TSVs statt intern zu splitten.")
     ap.add_argument("--split_dir", default=None, help="Ordner mit den TSVs. Default: --outdir.")

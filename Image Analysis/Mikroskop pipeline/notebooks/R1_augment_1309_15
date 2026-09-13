@@ -1,0 +1,26 @@
+17 Masken sind LEER (keine Annotation) und werden ausgeschlossen:
+       - 2026_07_17 V14 48h Expression_A3_1_CH4
+       - 2026_07_17 V14 48h Expression_A3_2_CH4
+       - 2026_07_17 V14 48h Expression_A3_3_CH4
+       - 2026_07_17 V14 48h Expression_C1_3_CH4
+       - 2026_07_17 V14 48h Expression_C2_1_CH4
+       - 2026_07_17 V14 48h Expression_C3_3_CH4
+       - 2026_07_17 V14 48h Expression_C4_1_CH4
+       - 2026_07_17 V14 48h Expression_C4_2_CH4
+       - 2026_07_17 V14 48h Expression_C4_3_CH4
+       - 2026_07_17 V14 48h Ratio_A1_2_CH4
+       - 2026_07_17 V14 48h Ratio_A1_3_CH4
+       - 2026_07_17 V14 48h Ratio_A2_2_CH4
+       - 2026_07_17 V14 48h Ratio_A2_3_CH4
+       - 2026_07_17 V14 48h Ratio_A3_2_CH4
+       - 2026_07_17 V14 48h Ratio_A3_3_CH4
+       - 2026_07_17 V14 48h Ratio_A4_4_CH4
+       - 2026_07_17 V14 48h Ratio_B4_4_CH4
+[INFO] 27 Bilder mit Annotation verbleiben.
+[INFO] Split: train=19  val=5  test=3
+[INFO] train_bboxes.tsv: 786 Boxen ueber 72 Bilder -> C:\Users\lobe-\OneDrive\Dokumente\Studium MoBi\iGem\Drylab\Voyage Repo GitHub\Voyage-r\Image Analysis\Mikroskop pipeline\data\splits\train_bboxes.tsv
+[INFO] val_bboxes.tsv: 60 Boxen ueber 5 Bilder -> C:\Users\lobe-\OneDrive\Dokumente\Studium MoBi\iGem\Drylab\Voyage Repo GitHub\Voyage-r\Image Analysis\Mikroskop pipeline\data\splits\val_bboxes.tsv
+[INFO] test_bboxes.tsv: 48 Boxen ueber 3 Bilder -> C:\Users\lobe-\OneDrive\Dokumente\Studium MoBi\iGem\Drylab\Voyage Repo GitHub\Voyage-r\Image Analysis\Mikroskop pipeline\data\splits\test_bboxes.tsv
+
+[DONE] Augmentierte Dateien tragen '_aug' in der uid.
+       -> im Training per WeightedRandomSampler seltener ziehen.
