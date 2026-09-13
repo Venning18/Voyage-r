@@ -13,6 +13,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 from torch.optim import AdamW
+from torch.utils.data import WeightedRandomSampler #für weighted sampler bei picture augmentation through rotation
 
 from cellSAM.sam_inference import CellSAM
 from cellSAM.AnchorDETR.models.anchor_detr import SetCriterion
@@ -21,6 +22,15 @@ from cellSAM.AnchorDETR.models.matcher import build_matcher
 # -------------------------
 # IO helpers
 # -------------------------
+
+
+def build_sampler_weights(dataset, aug_weight=0.3, aug_marker="_aug"):
+    weights = []
+    for uid, _g in dataset.groups:
+        weights.append(aug_weight if aug_marker in str(uid) else 1.0)
+    return torch.as_tensor(weights, dtype=torch.double)
+
+
 def read_image_any(path):
     """
     Returns a 2D numpy array (Y, X).
@@ -292,7 +302,10 @@ def main():
     train_dset = CellFinderDataset(f"{args.outdir}/train_bboxes.tsv", resize=1024)
     val_dset = CellFinderDataset(f"{args.outdir}/val_bboxes.tsv", resize=1024)
     
-    train_loader = DataLoader(train_dset, batch_size=args.batch_size, shuffle=True,
+    weights = build_sampler_weights(train_dset, aug_weight=0.3)
+    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+
+    train_loader = DataLoader(train_dset, batch_size=args.batch_size, sampler=sampler,          
                               num_workers=args.num_workers, collate_fn=collate_fn, pin_memory=True)
     val_loader = DataLoader(val_dset, batch_size=args.batch_size, shuffle=False,
                             num_workers=args.num_workers, collate_fn=collate_fn, pin_memory=True)
