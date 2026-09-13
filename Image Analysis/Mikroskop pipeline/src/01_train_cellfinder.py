@@ -264,6 +264,10 @@ def parse_args():
     
     ap = argparse.ArgumentParser()
     ap.add_argument("--bboxes_csv", required=True)
+    ap.add_argument("--bboxes_csv", required=False, default=None)   # war required=True
+    ap.add_argument("--use_existing_splits", action="store_true",
+                    help="Nutze vorhandene train/val/test_bboxes.tsv statt intern zu splitten.")
+    ap.add_argument("--split_dir", default=None, help="Ordner mit den TSVs. Default: --outdir.")
     ap.add_argument("--init_cellsam_ckpt", default=None,
                     help="Optional: path to a CellSAM .pt checkpoint to initialize from (recommended).")
     ap.add_argument("--outdir", required=True)
@@ -278,6 +282,7 @@ def parse_args():
                     help="Freeze detector backbone for first N epochs, then unfreeze.")
     ap.add_argument("--num_workers", required=False, type=int, default=8)
     args = ap.parse_args()
+
     
     return args
 
@@ -292,7 +297,24 @@ def main():
     best_ckpt = os.path.join(args.outdir, "cellfinder_ft6_ckpt.pt")
 
     # Load datasets
-    train_df, val_df, test_df = split_by_uid(csv_path=args.bboxes_csv, val_frac=args.val_frac, test_frac=args.test_frac, seed=42)
+    if args.use_existing_splits:
+        split_dir = args.split_dir or args.outdir
+        train_tsv = os.path.join(split_dir, "train_bboxes.tsv")
+        val_tsv   = os.path.join(split_dir, "val_bboxes.tsv")
+        print(f"[INFO] Nutze vorhandene Splits aus: {split_dir}")
+    else:
+        train_df, val_df, test_df = split_by_uid(csv_path=args.bboxes_csv,
+                                                 val_frac=args.val_frac,
+                                                 test_frac=args.test_frac, seed=42)
+        train_tsv = f"{args.outdir}/train_bboxes.tsv"
+        val_tsv   = f"{args.outdir}/val_bboxes.tsv"
+        train_df.to_csv(train_tsv, sep="\t", index=False)
+        val_df.to_csv(val_tsv, sep="\t", index=False)
+        test_df.to_csv(f"{args.outdir}/test_bboxes.tsv", sep="\t", index=False)
+        print(f"train={len(train_df)} val={len(val_df)} test={len(test_df)}")
+
+    train_dset = CellFinderDataset(train_tsv, resize=1024)
+    val_dset   = CellFinderDataset(val_tsv, resize=1024)
 
     train_df.to_csv(f'{args.outdir}/train_bboxes.tsv', sep="\t", index=False)
     val_df.to_csv(f'{args.outdir}/val_bboxes.tsv', sep="\t", index=False)

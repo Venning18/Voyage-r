@@ -17,6 +17,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
+from torch.utils.data import WeightedRandomSampler
 
 from bioio import BioImage
 from cellSAM.sam_inference import CellSAM
@@ -26,6 +27,13 @@ from cellSAM.utils import normalize_image, format_image_shape
 # -------------------------
 # UTILS
 # -------------------------
+
+def build_sampler_weights(dataset, aug_weight=0.3, aug_marker="_aug"):
+    weights = []
+    for uid, _g in dataset.groups:
+        weights.append(aug_weight if aug_marker in str(uid) else 1.0)
+    return torch.as_tensor(weights, dtype=torch.double)
+
 def read_image_any(path):
     """
     Returns a 2D numpy array (Y, X).
@@ -483,6 +491,11 @@ def parse_args():
     ap.add_argument("--bce_w", type=float, default=1.0)
     ap.add_argument("--dice_w", type=float, default=1.0)
 
+    ap.add_argument("--bboxes_csv", required=False, default=None)   # war required=True
+    ap.add_argument("--use_existing_splits", action="store_true",
+                    help="Nutze vorhandene TSVs statt intern zu splitten.")
+    ap.add_argument("--split_dir", default=None, help="Ordner mit den TSVs. Default: --outdir.")
+
     ap.add_argument("--bbox_threshold_pred", type=float, default=0.4, help="bbox_threshold for writing final preds")
     ap.add_argument("--write_val_preds", action="store_true", help="After training, write instance-label predictions for VAL split")
     
@@ -503,16 +516,13 @@ def main():
     loss_tsv = os.path.join(args.outdir, "losses.tsv")
     loss_png = os.path.join(args.outdir, "loss_curve.png")
 
-    if args.resume:
-        # use existing splits
-        train_df = pd.read_csv(f'{args.outdir}/train_bboxes.tsv', sep="\t")
-        val_df   = pd.read_csv(f'{args.outdir}/val_bboxes.tsv', sep="\t")
-        test_df  = pd.read_csv(f'{args.outdir}/test_bboxes.tsv', sep="\t")
-        print(f"[INFO] RESUME: loaded existing splits from outdir")
-        print(f"[INFO] train images={train_df['uid'].nunique()} rows={len(train_df)}")
-        print(f"[INFO] val   images={val_df['uid'].nunique()} rows={len(val_df)}")
-        print(f"[INFO] test  images={test_df['uid'].nunique()} rows={len(test_df)}")
-        
+    if args.resume or args.use_existing_splits:
+        split_dir = args.split_dir or args.outdir
+        train_df = pd.read_csv(os.path.join(split_dir, "train_bboxes.tsv"), sep="\t")
+        val_df   = pd.read_csv(os.path.join(split_dir, "val_bboxes.tsv"), sep="\t")
+        test_df  = pd.read_csv(os.path.join(split_dir, "test_bboxes.tsv"), sep="\t")
+        print(f"[INFO] Nutze vorhandene Splits aus: {split_dir}")
+
     else:
         # load data
         df = pd.read_csv(args.bboxes_csv, sep="\t")
@@ -529,8 +539,12 @@ def main():
     train_set = MaskTrainDataset(train_df, max_instances_per_image=args.max_instances_per_image, seed=args.seed)
     val_set = MaskTrainDataset(val_df, max_instances_per_image=args.max_instances_per_image, seed=args.seed + 1)
 
+    weights = build_sampler_weights(train_set, aug_weight=0.3)
+    sampler = WeightedRandomSampler(weights, num_samples=len(weights), replacement=True)
+
     train_loader = DataLoader(
-        train_set, batch_size=args.batch_size, shuffle=True,
+        train_set, batch_size=args.batch_size,
+        sampler=sampler,                 # statt shuffle=True
         num_workers=args.num_workers, collate_fn=collate_samples,
         pin_memory=True,
     )
