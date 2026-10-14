@@ -1,0 +1,20 @@
+# Bilder OHNE Gasvesikel (geprueft) -> Negativbeispiele fuer augment.py --negatives
+# Ein Bildname (ohne _mask) pro Zeile. Leere Masken, die hier fehlen, werden ausgeschlossen.
+2026_07_17 V14 48h Expression_A3_1_CH4
+2026_07_17 V14 48h Expression_A3_2_CH4
+2026_07_17 V14 48h Expression_A3_3_CH4
+2026_07_17 V14 48h Expression_C1_2_CH4
+2026_07_17 V14 48h Expression_C1_3_CH4
+2026_07_17 V14 48h Expression_C2_1_CH4
+2026_07_17 V14 48h Expression_C3_3_CH4
+2026_07_17 V14 48h Expression_C4_1_CH4
+2026_07_17 V14 48h Expression_C4_2_CH4
+2026_07_17 V14 48h Expression_C4_3_CH4
+2026_07_17 V14 48h Ratio_A1_2_CH4
+2026_07_17 V14 48h Ratio_A1_3_CH4
+2026_07_17 V14 48h Ratio_A2_2_CH4
+2026_07_17 V14 48h Ratio_A2_3_CH4
+2026_07_17 V14 48h Ratio_A3_2_CH4
+2026_07_17 V14 48h Ratio_A3_3_CH4
+2026_07_17 V14 48h Ratio_A4_4_CH4
+2026_07_17 V14 48h Ratio_B4_4_CH4
