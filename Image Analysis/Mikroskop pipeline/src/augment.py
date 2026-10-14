@@ -21,10 +21,10 @@ Ausgabe:
   <out_dir>/test_bboxes.tsv       nur Originale
 
 Benutzung:
-    python augment.py \\
+    uv run python src/augment.py \\
         --image_dir data/01_raw \\
         --mask_dir data/masks_gvs \\
-        --out_dir data_split \\
+        --out_dir data/splits \\
         --angles 90 270 \\
         --flips horizontal
 
@@ -46,9 +46,19 @@ from annotation_utils import label_mask_to_rows
 # Transformationen
 # -------------------------
 def rotate_pair(image, mask, angle):
-    """Bild interpoliert (order=3), Maske nearest-neighbor (order=0),
-    damit die ganzzahligen Instanz-IDs nicht verfaelscht werden.
-    reshape=False haelt die Bildgroesse konstant."""
+    """Bild und Maske identisch drehen.
+
+    Vielfache von 90 Grad: np.rot90 -> verlustfrei, keine Rand-Artefakte, Instanz-IDs
+    bleiben unveraendert. Bei nicht-quadratischen Bildern (z.B. 720x960) wird die Form
+    getauscht (960x720); nichts wird abgeschnitten oder aufgefuellt.
+
+    Andere Winkel: scipy-Rotation mit reshape=False (Bild order=3, Maske nearest-neighbor
+    order=0, damit Instanz-IDs nicht verfaelscht werden). ACHTUNG: schneidet bei
+    nicht-quadratischen Bildern Ecken ab und fuellt Raender (Bild: reflect, Maske: 0)."""
+    if float(angle) % 90 == 0:
+        k = int(round(float(angle) / 90)) % 4
+        return np.rot90(image, k).copy(), np.rot90(mask, k).copy()
+
     img_r = ndi_rotate(image, angle, reshape=False, order=3, mode="reflect").astype(image.dtype)
     msk_r = ndi_rotate(mask.astype(np.float32), angle, reshape=False, order=0,
                        mode="constant", cval=0).astype(mask.dtype)
@@ -73,8 +83,10 @@ def split_stems(stems, val_frac, test_frac, seed):
     rng.shuffle(stems)
 
     n = len(stems)
-    n_test = int(round(n * test_frac))
-    n_val = int(round(n * val_frac))
+    # mindestens 1 Bild pro Split, sobald der Anteil > 0 ist (sonst z.B. bei 3 Bildern:
+    # round(3 * 0.1) = 0 -> leeres Test-Set)
+    n_test = max(1, int(round(n * test_frac))) if test_frac > 0 else 0
+    n_val = max(1, int(round(n * val_frac))) if val_frac > 0 else 0
     n_train = n - n_val - n_test
     if n_train <= 0:
         raise ValueError("Split-Anteile zu gross; Train-Split waere leer.")

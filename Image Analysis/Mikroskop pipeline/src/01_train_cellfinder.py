@@ -157,9 +157,10 @@ class CellFinderDataset(Dataset):
         return x, target
     
 def collate_fn(batch):
+    # Kein torch.stack: rot90/rot270-Augmentierungen sind 960x720 statt 720x960.
+    # sam_bbox_preprocessing nimmt eine Liste und skaliert jedes Bild selbst auf 1024x1024.
     xs, targets = zip(*batch)
-    xs = torch.stack(xs, dim=0)
-    return xs, list(targets)
+    return list(xs), list(targets)
 
 # -------------------------
 # Loss plotting + logging
