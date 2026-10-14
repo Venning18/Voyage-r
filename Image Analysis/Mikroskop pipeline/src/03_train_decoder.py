@@ -472,7 +472,9 @@ def parse_args():
     ap = argparse.ArgumentParser("Train CellSAM SAM mask decoder (stage-2) using GT labels + boxes.")
     
     ap.add_argument("--bboxes_csv", required=False, default=None, help="TSV with columns incl uid,image_path,label_path,xmin,ymin,xmax,ymax,label_id")
-    ap.add_argument("--init_cellsam_ckpt", required=True, help="Base CellSAM checkpoint (e.g. cellsam_general.pt)")
+    ap.add_argument("--init_cellsam_ckpt",
+                    default="/home/hd/hd_hd/hd_tt333/.deepcell/models/cellsam_v1.2/cellsam_general.pt",
+                    help="Base CellSAM checkpoint (e.g. cellsam_general.pt)")
     ap.add_argument("--cellfinder_decode_head_ckpt", required=True, help="Your fine-tuned decode_head .pt")
     ap.add_argument("--outdir", required=True)
 

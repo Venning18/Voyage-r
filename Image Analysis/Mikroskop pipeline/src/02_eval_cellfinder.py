@@ -149,7 +149,7 @@ def greedy_match(iou, thr):
 def load_cellsam(ckpt_path: str, device: str) -> CellSAM:
     
     model = CellSAM({}).to(device).eval()
-    sd = torch.load(ckpt_path, map_location="cpu")
+    sd = torch.load(os.path.expanduser(ckpt_path), map_location="cpu")
     model.load_state_dict(sd, strict=False)
     
     return model
@@ -212,7 +212,9 @@ def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--bboxes_test", required=True)
     ap.add_argument("--new_ckpt", required=True)
-    ap.add_argument("--old_cellsam_ckpt", required=True)
+    ap.add_argument("--old_cellsam_ckpt",
+                    default="/home/hd/hd_hd/hd_tt333/.deepcell/models/cellsam_v1.2/cellsam_general.pt",
+                    help="Base CellSAM checkpoint.")
     ap.add_argument("--score_thr", type=float, default=0.4)
     ap.add_argument("--iou_thr", type=float, default=0.5)
     ap.add_argument("--border_margin", type=int, default=1)

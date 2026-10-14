@@ -333,8 +333,10 @@ def parse_args():
     ap = argparse.ArgumentParser("Evaluate CellSAM masks: pixel FG/BG + instance IoU matching.")
     
     ap.add_argument("--outdir", required=True, help="Outdir containing test_bboxes.tsv and finetuned ckpt.")
-    ap.add_argument("--old_ckpt", required=True, help="Base CellSAM checkpoint (e.g. cellsam_general.pt).")
-    ap.add_argument("--new_ckpt", default=None, help="Finetuned full CellSAM checkpoint. Default: outdir/cellsam_decoder_best.pt")
+    ap.add_argument("--old_ckpt",
+                    default="/home/hd/hd_hd/hd_tt333/.deepcell/models/cellsam_v1.2/cellsam_general.pt",
+                    help="Base CellSAM checkpoint (e.g. cellsam_general.pt).")
+    ap.add_argument("--new_ckpt", default=None, help="Finetuned full CellSAM checkpoint. Default: outdir/decoder_ft3_ckpt.pt")
     ap.add_argument("--bbox_threshold", type=float, default=0.4, help="bbox_threshold for CellSAM.predict (use same for both).")
     ap.add_argument("--inst_iou_thr", type=float, default=0.5, help="IoU threshold for instance matching.")
     ap.add_argument("--save_new_preds", action="store_true", help="Save new model predicted instance labels for test set.")
@@ -352,6 +354,10 @@ def parse_args():
 def main():
     
     args = parse_args()
+    if args.new_ckpt is None:
+        args.new_ckpt = os.path.join(args.outdir, "decoder_ft3_ckpt.pt")
+    print("[INFO] old_ckpt:", args.old_ckpt)
+    print("[INFO] new_ckpt:", args.new_ckpt)
 
     test_tsv = os.path.join(args.outdir, "test_bboxes.tsv")
 

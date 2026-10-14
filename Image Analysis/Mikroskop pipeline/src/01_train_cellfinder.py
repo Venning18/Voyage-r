@@ -16,8 +16,24 @@ from torch.optim import AdamW
 from torch.utils.data import WeightedRandomSampler #für weighted sampler bei picture augmentation through rotation
 
 from cellSAM.sam_inference import CellSAM
+import sys, cellSAM
+sys.path.insert(0, os.path.dirname(cellSAM.__file__))
 from cellSAM.AnchorDETR.models.anchor_detr import SetCriterion
 from cellSAM.AnchorDETR.models.matcher import build_matcher
+
+import cellSAM.AnchorDETR.models.anchor_detr as _anchor_detr
+
+def sigmoid_focal_loss(inputs, targets, num_boxes, alpha: float = 0.25, gamma: float = 2):
+    prob = inputs.sigmoid()
+    ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+    p_t = prob * targets + (1 - prob) * (1 - targets)
+    loss = ce_loss * ((1 - p_t) ** gamma)
+    if alpha >= 0:
+        alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
+        loss = alpha_t * loss
+    return loss.mean(1).sum() / num_boxes
+
+_anchor_detr.sigmoid_focal_loss = sigmoid_focal_loss
 
 # -------------------------
 # IO helpers
@@ -220,6 +236,7 @@ def train_one_epoch(cellfinder, cellsam, train_loader, criterion, optimizer, dev
             loss = sum(loss_dict[k] * criterion.weight_dict[k] for k in loss_dict if k in criterion.weight_dict)
             
         scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
         torch.nn.utils.clip_grad_norm_(cellfinder.parameters(), 0.1)
         
         scaler.step(optimizer)
@@ -271,8 +288,8 @@ def parse_args():
     ap.add_argument("--use_existing_splits", action="store_true",
                     help="Nutze vorhandene train/val/test_bboxes.tsv statt intern zu splitten.")
     ap.add_argument("--split_dir", default=None, help="Ordner mit den TSVs. Default: --outdir.")
-    ap.add_argument("--init_cellsam_ckpt", default=None,
-                    help="Optional: path to a CellSAM .pt checkpoint to initialize from (recommended).")
+    ap.add_argument("--init_cellsam_ckpt", default="/home/hd/hd_hd/hd_tt333/.deepcell/models/cellsam_v1.2/cellsam_general.pt",
+                help="Path to base CellSAM checkpoint.")
     ap.add_argument("--outdir", required=True)
     ap.add_argument("--epochs", type=int, default=25)
     ap.add_argument("--batch_size", type=int, default=2)
@@ -330,7 +347,7 @@ def main():
 
     # Model: AnchorDETR (decode_head)
     cellsam = CellSAM({}).to(device).eval()
-    sd = torch.load(args.init_cellsam_ckpt, map_location="cpu")
+    sd = torch.load(os.path.expanduser(args.init_cellsam_ckpt), map_location="cpu")
     cellsam.load_state_dict(sd, strict=False)
 
     for p in cellsam.model.parameters():
@@ -363,11 +380,13 @@ def main():
     criterion = SetCriterion(matcher_args.num_classes, matcher, weight_dict, losses).to(device)
 
     # Optimizer
-    param_dicts = [
-        {"params": [p for n, p in decode_head.named_parameters() if "backbone" not in n and p.requires_grad], "lr": args.lr},
-        {"params": [p for n, p in decode_head.named_parameters() if "backbone" in n and p.requires_grad], "lr": args.lr_backbone},
-    ]
-    optim = AdamW(param_dicts, lr=args.lr, weight_decay=args.weight_decay)
+    def build_param_dicts():
+        # muss nach jedem Freeze/Unfreeze neu gebaut werden (requires_grad-Filter)
+        return [
+            {"params": [p for n, p in decode_head.named_parameters() if "backbone" not in n and p.requires_grad], "lr": args.lr},
+            {"params": [p for n, p in decode_head.named_parameters() if "backbone" in n and p.requires_grad], "lr": args.lr_backbone},
+        ]
+    optim = AdamW(build_param_dicts(), lr=args.lr, weight_decay=args.weight_decay)
 
     # Training loop
     best_val_loss = float("inf")
@@ -377,8 +396,8 @@ def main():
         if freeze_N > 0 and epoch == freeze_N + 1:
             set_backbone_trainable(decode_head=decode_head, trainable=True)
             print(f"[INFO] Backbone unfrozen at epoch {epoch}. Using lr_backbone={args.lr_backbone}")
-            optim = AdamW(param_dicts, lr=args.lr, weight_decay=args.weight_decay)
-        
+            optim = AdamW(build_param_dicts(), lr=args.lr, weight_decay=args.weight_decay)
+
         t0 = time.time()
         train_loss = train_one_epoch(cellfinder=decode_head, 
                                      cellsam=cellsam, 
