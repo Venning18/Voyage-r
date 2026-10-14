@@ -96,7 +96,8 @@ def xyxy_to_cxcywh_norm(g, W, H):
 def split_by_uid(csv_path: str, val_frac: float = 0.2, test_frac: float = 0.1, seed: int = 6):
     
     df = pd.read_csv(csv_path, sep="\t")
-    df = df.dropna(subset=["uid","image_path","xmin","ymin","xmax","ymax"]).copy()
+    # Zeilen ohne Box (Negativbeispiele) behalten -> Bild mit 0 Targets
+    df = df.dropna(subset=["uid","image_path"]).copy()
     
     uids = df["uid"].dropna().unique()
     rng = np.random.default_rng(seed)
@@ -136,6 +137,8 @@ class CellFinderDataset(Dataset):
         
         _, g = self.groups[idx]
         img_path = g["image_path"].iloc[0]
+        # Negativbeispiel = eine Zeile ohne Box -> 0 Boxen (DETR lernt "kein Objekt")
+        g = g.dropna(subset=["xmin","ymin","xmax","ymax"])
         img = read_image_any(img_path)
     
         if img.ndim != 2:

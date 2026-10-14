@@ -246,7 +246,8 @@ def main():
             img = read_image_any(img_path)
 
             H, W = img.shape
-            gt_xyxy = g[["xmin","ymin","xmax","ymax"]].to_numpy(np.float32)
+            # Negativbeispiele: Zeile ohne Box -> 0 GT-Boxen, jede Vorhersage zaehlt als FP
+            gt_xyxy = g[["xmin","ymin","xmax","ymax"]].dropna().to_numpy(np.float32)
             pred, scores = predict_boxes_cellsam(cellsam=model, img_raw=img, score_thr=args.score_thr)
             pred = filter_border_boxes(pred, H=H, W=W, margin=args.border_margin)
             

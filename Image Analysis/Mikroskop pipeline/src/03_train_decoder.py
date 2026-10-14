@@ -535,6 +535,12 @@ def main():
         print(f"[INFO] val   images={val_df['uid'].nunique()} rows={len(val_df)}")
         print(f"[INFO] test  images={test_df['uid'].nunique()} rows={len(test_df)}")
 
+    # Negativbeispiele (Zeilen ohne Box) entfernen: der Decoder lernt Masken zu Boxen,
+    # ohne Box gibt es nichts zu lernen (und ein Batch nur aus Negativen haette keinen Gradienten)
+    box_cols = ["xmin", "ymin", "xmax", "ymax", "label_id"]
+    train_df = train_df.dropna(subset=box_cols).copy()
+    val_df = val_df.dropna(subset=box_cols).copy()
+
     train_set = MaskTrainDataset(train_df, max_instances_per_image=args.max_instances_per_image, seed=args.seed)
     val_set = MaskTrainDataset(val_df, max_instances_per_image=args.max_instances_per_image, seed=args.seed + 1)
 

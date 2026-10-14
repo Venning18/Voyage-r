@@ -11,11 +11,19 @@ import tifffile as tiff
 from skimage.measure import regionprops
 
 
-def label_mask_to_rows(label_img: np.ndarray, uid: str, image_path: str, label_path: str) -> pd.DataFrame:
+BOX_COLS = ["xmin", "ymin", "xmax", "ymax"]
+
+
+def label_mask_to_rows(label_img: np.ndarray, uid: str, image_path: str, label_path: str,
+                       keep_empty: bool = False) -> pd.DataFrame:
     """
     One row per instance in an instance-label mask (background=0, each
     object a unique positive integer id, e.g. what napari's Labels layer
     produces).
+
+    keep_empty=True: a mask without instances (verified negative image, no
+    gas vesicles) still yields ONE row with empty box columns (NaN), so the
+    image stays in the TSV. Consumers drop NaN boxes per image -> 0 targets.
     """
     rows = []
     for region in regionprops(label_img):
@@ -30,6 +38,10 @@ def label_mask_to_rows(label_img: np.ndarray, uid: str, image_path: str, label_p
             "ymax": y1,
             "label_id": region.label,
         })
+    if not rows and keep_empty:
+        rows.append({"uid": uid, "image_path": image_path, "label_path": label_path,
+                     "xmin": np.nan, "ymin": np.nan, "xmax": np.nan, "ymax": np.nan,
+                     "label_id": np.nan})
     return pd.DataFrame(rows)
 
 

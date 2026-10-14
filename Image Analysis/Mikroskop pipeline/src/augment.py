@@ -13,6 +13,14 @@ Grad (verlustfrei, keine Rand-Artefakte). Zusaetzlich werden augmentierte
 Dateien im Namen mit "_aug" markiert (und damit auch in der uid), sodass ein
 WeightedRandomSampler im Trainingsskript sie erkennen und seltener ziehen kann.
 
+Negativbeispiele (Bilder OHNE Gasvesikel):
+  Eine leere Maske kann "geprueft, nichts drauf" ODER "noch nicht annotiert" heissen.
+  Darum werden leere Masken nur dann als Negativbeispiel benutzt, wenn ihr Bild-Stem
+  in der Datei --negatives steht (ein Stem pro Zeile, '#' = Kommentar). Alle anderen
+  leeren Masken werden wie bisher ausgeschlossen.
+  Negativbeispiele werden getrennt gesplittet (damit val/test auch welche bekommen),
+  im Train-Split mit augmentiert und stehen im TSV als eine Zeile ohne Box (NaN).
+
 Ausgabe:
   <out_dir>/aug_images/           augmentierte Bilder (Originale bleiben, wo sie sind)
   <out_dir>/aug_masks/            augmentierte Masken
@@ -76,13 +84,22 @@ def flip_pair(image, mask, mode):
 # -------------------------
 # Split
 # -------------------------
-def split_stems(stems, val_frac, test_frac, seed):
-    """Teilt die Liste der Bild-Stems in train/val/test (auf Bildebene)."""
+def split_stems(stems, val_frac, test_frac, seed, min_one=True):
+    """Teilt die Liste der Bild-Stems in train/val/test (auf Bildebene).
+
+    min_one=False: kein erzwungenes Mindestbild pro Split und leeres Train erlaubt
+    (fuer die meist wenigen Negativbeispiele)."""
     stems = list(stems)
     rng = np.random.default_rng(seed)
     rng.shuffle(stems)
 
     n = len(stems)
+    if not min_one:
+        n_test = int(round(n * test_frac))
+        n_val = int(round(n * val_frac))
+        return (stems[:n - n_val - n_test], stems[n - n_val - n_test:n - n_test],
+                stems[n - n_test:])
+
     # mindestens 1 Bild pro Split, sobald der Anteil > 0 ist (sonst z.B. bei 3 Bildern:
     # round(3 * 0.1) = 0 -> leeres Test-Set)
     n_test = max(1, int(round(n * test_frac))) if test_frac > 0 else 0
@@ -100,14 +117,27 @@ def split_stems(stems, val_frac, test_frac, seed):
 def rows_for_original(stem, image_path, mask_path):
     """bboxes-Zeilen fuer ein Originalbild (aus der Maske via regionprops)."""
     label_img = tiff.imread(mask_path)
-    return label_mask_to_rows(label_img, uid=stem, image_path=image_path, label_path=mask_path)
+    return label_mask_to_rows(label_img, uid=stem, image_path=image_path, label_path=mask_path,
+                              keep_empty=True)
 
 
 def rows_for_augmented(image, mask, uid, out_image_path, out_mask_path):
     """Augmentiertes Bild+Maske auf Disk schreiben und bboxes-Zeilen erzeugen."""
     tiff.imwrite(out_image_path, image)
     tiff.imwrite(out_mask_path, mask, compression="zlib")
-    return label_mask_to_rows(mask, uid=uid, image_path=out_image_path, label_path=out_mask_path)
+    return label_mask_to_rows(mask, uid=uid, image_path=out_image_path, label_path=out_mask_path,
+                              keep_empty=True)
+
+
+def read_stem_list(path):
+    """Stems aus einer Textdatei (eine Zeile pro Bild, '#' = Kommentar, Endung optional)."""
+    stems = set()
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                stems.add(os.path.splitext(line)[0] if line.lower().endswith((".tif", ".tiff")) else line)
+    return stems
 
 
 def mask_n_instances(mask_path):
@@ -135,6 +165,9 @@ def main():
     ap.add_argument("--val_frac", type=float, default=0.2)
     ap.add_argument("--test_frac", type=float, default=0.1)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--negatives", default=None,
+                    help="Textdatei mit Bild-Stems, deren LEERE Maske bewusst 'keine Gasvesikel' "
+                         "bedeutet. Diese werden als Negativbeispiele benutzt.")
     args = ap.parse_args()
 
     aug_image_dir = os.path.join(args.out_dir, "aug_images")
@@ -156,31 +189,50 @@ def main():
         raise ValueError("Keine passenden Bild/Masken-Paare gefunden.")
     print(f"[INFO] {len(pairs)} Original-Paare gefunden.")
 
-    # 1b) Leere (nicht annotierte) Masken erkennen und aussortieren
+    # 1b) Leere Masken: Negativbeispiel (in --negatives gelistet) oder nicht annotiert (raus)
+    neg_list = read_stem_list(args.negatives) if args.negatives else set()
     nonempty = {}
+    negatives = {}
     empty_stems = []
     for stem, (image_path, mask_path) in pairs.items():
         if mask_n_instances(mask_path) > 0:
             nonempty[stem] = (image_path, mask_path)
+            if stem in neg_list:
+                print(f"[WARN] {stem} steht in --negatives, hat aber Annotationen -> normales Bild.")
+        elif stem in neg_list:
+            negatives[stem] = (image_path, mask_path)
         else:
             empty_stems.append(stem)
 
+    for s in sorted(neg_list - set(pairs)):
+        print(f"[WARN] --negatives: kein Bild/Masken-Paar fuer '{s}' gefunden.")
+
     if empty_stems:
-        print(f"[WARN] {len(empty_stems)} Masken sind LEER (keine Annotation) und werden ausgeschlossen:")
+        print(f"[WARN] {len(empty_stems)} Masken sind LEER und nicht in --negatives "
+              f"(= nicht annotiert?) -> ausgeschlossen:")
         for s in empty_stems:
             print(f"       - {s}")
 
-    print(f"[INFO] {len(nonempty)} Bilder mit Annotation verbleiben.")
+    print(f"[INFO] {len(nonempty)} Bilder mit Annotation, {len(negatives)} Negativbeispiele.")
     if len(nonempty) < 3:
         raise ValueError("Zu wenige annotierte Bilder fuer einen train/val/test-Split. "
                          "Bitte mehr Masken annotieren.")
 
-    # 2) ZUERST splitten (nur ueber annotierte Bilder -> kein leeres Test-Set)
-    pairs = nonempty
+    # 2) ZUERST splitten: annotierte Bilder und Negativbeispiele getrennt (stratifiziert),
+    #    damit jeder Split Bilder mit Vesikeln hat und val/test moeglichst auch Negative
     train_stems, val_stems, test_stems = split_stems(
-        pairs.keys(), args.val_frac, args.test_frac, args.seed
+        nonempty.keys(), args.val_frac, args.test_frac, args.seed
     )
-    print(f"[INFO] Split: train={len(train_stems)}  val={len(val_stems)}  test={len(test_stems)}")
+    neg_train, neg_val, neg_test = split_stems(
+        negatives.keys(), args.val_frac, args.test_frac, args.seed,
+        min_one=len(negatives) >= 3,   # ab 3 Negativen: je mind. 1 in val und test
+    )
+    print(f"[INFO] Split (annotiert): train={len(train_stems)}  val={len(val_stems)}  test={len(test_stems)}")
+    print(f"[INFO] Split (negativ):   train={len(neg_train)}  val={len(neg_val)}  test={len(neg_test)}")
+    train_stems += neg_train
+    val_stems += neg_val
+    test_stems += neg_test
+    pairs = {**nonempty, **negatives}
 
     # 3) val + test: nur Originale
     val_rows = [rows_for_original(s, *pairs[s]) for s in val_stems]
@@ -219,7 +271,8 @@ def main():
         path = os.path.join(args.out_dir, name)
         df.to_csv(path, sep="\t", index=False)
         n_imgs = df["uid"].nunique() if not df.empty else 0
-        print(f"[INFO] {name}: {len(df)} Boxen ueber {n_imgs} Bilder -> {path}")
+        n_boxes = int(df["xmin"].notna().sum()) if not df.empty else 0
+        print(f"[INFO] {name}: {n_boxes} Boxen ueber {n_imgs} Bilder -> {path}")
 
     write_tsv(train_rows, "train_bboxes.tsv")
     write_tsv(val_rows, "val_bboxes.tsv")
