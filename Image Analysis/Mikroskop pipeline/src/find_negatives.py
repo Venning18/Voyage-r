@@ -25,6 +25,11 @@ def main():
     ap.add_argument("--image_ext", default=".tif")
     args = ap.parse_args()
 
+    if not os.path.isdir(args.mask_dir):
+        raise SystemExit(f"[ERROR] Masken-Ordner nicht gefunden: {os.path.abspath(args.mask_dir)}\n"
+                         f"        Relative Pfade gelten ab dem Ordner, in dem du gerade bist "
+                         f"({os.getcwd()}).")
+
     tail = f"{args.mask_suffix}{args.image_ext}"
     all_tifs = sorted(glob.glob(os.path.join(args.mask_dir, f"*{args.image_ext}")))
     masks = [p for p in all_tifs if p.endswith(tail)]
@@ -34,11 +39,16 @@ def main():
         if not p.endswith(tail):
             print(f"[WARN] Name passt nicht zu '*{tail}', wird ignoriert: {os.path.basename(p)}")
 
+    if not masks:
+        raise SystemExit(f"[ERROR] Keine Dateien '*{tail}' in {os.path.abspath(args.mask_dir)}")
+
     empty = []
     for p in masks:
         if not np.any(tiff.imread(p)):
             empty.append(os.path.basename(p)[: -len(tail)])
 
+    out_dir = os.path.dirname(os.path.abspath(args.out))
+    os.makedirs(out_dir, exist_ok=True)
     with open(args.out, "w", encoding="utf-8") as f:
         f.write("# Bilder OHNE Gasvesikel (leere Maske) -> augment.py --negatives\n")
         f.writelines(s + "\n" for s in empty)
